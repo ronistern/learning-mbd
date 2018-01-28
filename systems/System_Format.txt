@@ -1,0 +1,10 @@
+System Format
+----------------------
+<System ID>.
+[<System Inputs List> ... ].
+[<System Outputs List> ... ].
+[<System Gates List> ... ].
+
+Gate Format
+-----------------------
+[LogicType, GateID, GateOutput | GateInputs]
