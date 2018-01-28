@@ -2,6 +2,12 @@ import ast
 import random
 
 class Component(object):
+
+
+    @staticmethod
+    def buffer(inputs):
+        return inputs[0]
+
     @staticmethod
     def and2(inputs):
         return inputs[0] * inputs[1]
@@ -23,8 +29,24 @@ class Component(object):
         return 1 - inputs[0] * inputs[1]
 
     @staticmethod
+    def nand3(inputs):
+        return 1 - (inputs[0] * inputs[1] * inputs[2])
+
+    @staticmethod
+    def nand4(inputs):
+        return 1 - (inputs[0] * inputs[1] * inputs[2] * inputs[3])
+
+    @staticmethod
+    def nand5(inputs):
+        return 1 - (inputs[0] * inputs[1] * inputs[2] * inputs[3]*inputs[4])
+
+    @staticmethod
     def inverter(inputs):
         return 1 - inputs[0]
+
+    @staticmethod
+    def or2(inputs):
+        return max(inputs)
 
     @staticmethod
     def nor2(inputs):
@@ -49,11 +71,11 @@ class Component(object):
         else:
             return 1
 
-    def __init__(self, comp_name, comp_type, comp_inputs, comp_outputs):
+    def __init__(self, comp_name, comp_type, comp_inputs, comp_output):
         self.name = comp_name
         self.type = getattr(self, comp_type)
         self.inputs = comp_inputs
-        self.output = comp_outputs
+        self.output = comp_output
 
     def __str__(self):
         return "%s (%s)" % (self.name, self.type)
@@ -69,6 +91,16 @@ def read_component(line):
     comp_output = parts[2]
     comp_inputs = parts[3:]
     return Component(comp_name, comp_type, comp_inputs, comp_output)
+
+
+class Subsystem:
+    def __init__(self, components, comp_inputs, comp_output):
+        self.components = components
+        self.inputs = comp_inputs
+        self.output = comp_output
+
+    def __str__(self):
+        return "Subsytem:[%s]" % [comp.name for comp in self.components]
 
 
 class System:
@@ -139,6 +171,36 @@ def read_system(in_file_name):
         components[component.name] = component
     return System(system_name, system_inputs, system_outputs, components)
 
+## Learning for full probing
+def fully_observed_subsystems(system):
+    # Map output to the component that generated it
+    output_to_comp = dict()
+    for component in system.components.values():
+        output_to_comp[component.output] = component
+
+    # Store only the components whose outputs are system output
+    subsystems = dict()
+    for sys_output in system.outputs:
+        # Get fully observable subsystem
+        component = output_to_comp[sys_output]
+        subsystem_components = set([component.name])
+        potential_subsystem_inputs = set(component.inputs)
+        subsystem_inputs = set()
+        while len(potential_subsystem_inputs)>0:
+            potential_input = potential_subsystem_inputs.pop()
+            if potential_input  in system.outputs or potential_input  in system.inputs:
+                subsystem_inputs.add(potential_input)
+            else: # The potential input is unobserved, so propagate backwards
+                component = output_to_comp[potential_input]
+                subsystem_components.add(component.name)
+
+                new_inputs = set(component.inputs).difference(subsystem_inputs)
+                potential_subsystem_inputs.update(new_inputs)
+
+        new_subsystem = Subsystem(subsystem_components,subsystem_inputs,sys_output)
+        subsystems[sys_output]=new_subsystem
+    return subsystems
+
 
 
 ## Learning for full probing
@@ -147,78 +209,78 @@ def learn(system, training_set):
     for component in system.components.values():
         output_to_comp[component.output] = component
 
-    comp_to_behavior = dict()
+    output_to_subsystem = fully_observed_subsystems(system)
+
+    subsystem_to_behavior = dict()
     for instance in training_set.values():
         # Merge inputs and outputs
         observables = instance[0].copy()
         observables.update(instance[1])
 
         for sys_output in instance[1].keys():
-            comp = output_to_comp[sys_output]
+            subsystem = output_to_subsystem[sys_output]
             # Full probing assumption: inputs are also observable
             output_value = observables[sys_output]
-            input_values = {comp_input: observables[comp_input] for comp_input in comp.inputs}
-            if comp_to_behavior.has_key(comp) == False:
+            input_values = {comp_input: observables[comp_input] for comp_input in subsystem.inputs}
+            if subsystem_to_behavior.has_key(subsystem) == False:
                 comp_behavior = dict()
             else:
-                comp_behavior = comp_to_behavior[comp]
+                comp_behavior = subsystem_to_behavior[subsystem]
 
             comp_behavior[str(input_values)] = output_value
 
-            comp_to_behavior[comp] = comp_behavior
-    return comp_to_behavior
+            subsystem_to_behavior[subsystem] = comp_behavior
+    return (output_to_subsystem, subsystem_to_behavior)
 
-
-## Learning for full probing
-def learn_subsystems(system, training_set):
-    output_to_comp = dict()
-    for component in system.components.values():
-        output_to_comp[component.output] = component
-
-    comp_to_behavior = dict()
-    for instance in training_set.values():
-        # Merge inputs and outputs
-        observables = instance[0].copy()
-        observables.update(instance[1])
-
-        for sys_output in instance[1].keys():
-            comp = output_to_comp[sys_output]
-            # Full probing assumption: inputs are also observable
-            output_value = observables[sys_output]
-            input_values = {comp_input: observables[comp_input] for comp_input in comp.inputs}
-            if comp_to_behavior.has_key(comp) == False:
-                comp_behavior = dict()
-            else:
-                comp_behavior = comp_to_behavior[comp]
-
-            comp_behavior[str(input_values)] = output_value
-
-            comp_to_behavior[comp] = comp_behavior
-    return comp_to_behavior
 
 
 
 # Diagnose
-def diagnose(comp_to_behavior, obs_input, obs_output):
+def identify_surely_normal_inputs(subsystem_to_behavior, obs_input, obs_output):
     var_to_value = obs_input.copy()
     var_to_value.update(obs_output)
     observed_vars = set(var_to_value.keys())
 
-    # Look for components that have surely normal inputs
+    # Identify surely faulty and normally behaving subsystems
     surely_faulty = set()
     normally_behaving = set()
-    for comp in comp_to_behavior.keys():
-        if observed_vars.issuperset(comp.inputs):
-            behavior = comp_to_behavior[comp]
-            comp_inputs = {var: var_to_value[var] for var in comp.inputs}
+    for subsystem in subsystem_to_behavior.keys():
+        if observed_vars.issuperset(subsystem.inputs):
+            behavior = subsystem_to_behavior[subsystem]
+            comp_inputs = {var: var_to_value[var] for var in subsystem.inputs}
             key = str(comp_inputs)
             if behavior.has_key(key):
                 expected_output = behavior[key]
-                if var_to_value[comp.output] != expected_output:
-                    surely_faulty.add(comp)
+                if var_to_value[subsystem.output] != expected_output:
+                    surely_faulty.add(subsystem)
                 else:
-                    normally_behaving.add(comp)
+                    normally_behaving.add(subsystem)
+    return  (surely_faulty,normally_behaving)
 
-    return (surely_faulty, normally_behaving)
+# Diagnose
+def diagnose(system, training_set, obs_input, obs_output):
+    # Learn from the training set
+    (output_to_subsystem, subsystem_to_behavior) = learn(system,training_set)
 
+    # Diagnose
+    (surely_faulty, normally_behaving) = identify_surely_normal_inputs(subsystem_to_behavior, obs_input,obs_output)
+
+    candidate_faults = set()
+    exonorated = set()
+    for component in system.components.values():
+        can_exonorate = True
+        for subsystem in output_to_subsystem.values():
+            if component.name in subsystem.components:
+                if subsystem in surely_faulty:
+                    candidate_faults.add(component.name)
+                    can_exonorate = False
+                    break # Even if in surely normal, this does not exonorate it
+                elif subsystem not in normally_behaving:
+                    can_exonorate = False
+
+        # If all the subsystems that contain this component are normally behaving, we can exonorate it (from being in a minimal diagnosis)
+        if can_exonorate:
+            exonorated.add(component.name)
+
+    return (candidate_faults,exonorated)
 
