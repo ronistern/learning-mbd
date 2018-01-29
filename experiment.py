@@ -117,18 +117,30 @@ def sample_complexity():
             print "%s\t %s\t %s\t %s\t %s" % (system.name, probing, num_of_subsystems, max_inputs, m)
 
 def run_all_experiments():
-    print "System\t #Comps\t Training size\t Probing\t #Experiment\t Identified faults\t Missed faults \t Exonorated\t False Positives"
+    out_file = open("results.csv","w")
+    out_file.write("System\t #Comps\t Training size\t Probing\t #Experiment\t Identified faults\t Missed faults \t Exonorated\t False Positives\n")
+    print "System\t #Comps\t Training size\t Probing\t #Experiment\t Identified faults\t Missed faults \t Exonorated\t False Positives\n"
     experiments = 100
     faults = 1
     for probing in [1,2,4,8,16,"Full"]:
-        for train_size in [512,1024,2048]:
+        for train_size in [4096, 8192, 16384,32768]:
             for i in xrange(experiments):
                 system_file = "systems/74181.sys"
                 (system, identified_faults, missed_faults, exonorated_comps,false_positives)=run_experiment(system_file,train_size,probing,faults)
-                print "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s" % (system.name, len(system.components), train_size, probing, i, identified_faults, missed_faults, exonorated_comps,false_positives)
+                out_file.write("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" % (system.name, \
+                                                                         len(system.components), \
+                                                                         train_size, probing, i, identified_faults, missed_faults, \
+                                                                         exonorated_comps,false_positives))
+
+                print "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" % (system.name, \
+                                                                         len(system.components), \
+                                                                         train_size, probing, i, identified_faults, missed_faults, \
+                                                                         exonorated_comps,false_positives)
 
                 # system_file = "systems/74283.sys"
                 # (identified_faults, missed_faults, exonorated_comps,false_positives)=run_experiment(system,train_size,probing)
                 # print "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s" % (system.name, len(system.components), train_size, probing, i, identified_faults, missed_faults, exonorated_comps,false_positives)
 
+    out_file.close()
 
+run_all_experiments()
