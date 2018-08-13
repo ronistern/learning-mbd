@@ -31,13 +31,9 @@ def load_observable_faults(in_file_name):
     return inputs_and_faults
 
 
-def run_experiments(system_file, probes_range, training_inputs_file, training_sizes, faults_file,output_file,extra_data):
+def run_experiments(system_file, probes_range, training_inputs_file, training_sizes, faults_file,out_file,extra_data):
     # Prepare output
     results = dict()
-    out_file = open(output_file,"w")
-    headers = ["system", "probes", "training", "instance", "faults",\
-               "found_faults", "missed_faults","exonorated", "false positives","m"] + extra_data.keys() + ["\n"]
-    out_file.write(",".join(headers))
     extra_data_values = ",".join([str(item) for item in extra_data.values()])
 
     # Load faults file
@@ -149,16 +145,31 @@ def main():
     training_inputs_file = "inputs.txt"
     probes_range = [1,4,8,16,57]
     training_sizes = [4,16,64,256,1024]
+    output_file = "joined_output.csv"
+    out_file = open(output_file, "w")
+
+    headers_written = False
+
+    # Headers
     for faults in [1,2,3]:
         faults_file = "inputs_and_faults-%d.txt" % faults
         for i in xrange(5):
             print "Iteration %d, Faults %d" % (i,faults)
-            output_file="joined_output.csv"
+
             extra_data =dict()
             extra_data["faults"]=faults
             extra_data["iteration"] = i
-            run_experiments(system_file, probes_range, training_inputs_file, training_sizes, faults_file,output_file,extra_data)
 
+            if headers_written==False:
+                headers = ["system", "probes", "training", "instance", "faults", \
+                           "found_faults", "missed_faults", "exonorated", "false positives", "m"] + extra_data.keys() + [
+                              "\n"]
+                out_file.write(",".join(headers))
+                headers_written=True
+
+            run_experiments(system_file, probes_range, training_inputs_file, training_sizes, faults_file,out_file,extra_data)
+
+    out_file.close()
 if __name__=="__main__":
     main()
 
