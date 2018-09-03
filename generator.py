@@ -109,17 +109,19 @@ def load_observable_faults(in_file_name):
 Create all data needed for runner to run
 '''
 def main():
-    system_file = "systems/74181.sys"
+    #system_name = "c3540.sys"
+    system_name = "74181.sys"
+    system_file = "systems/%s"% system_name
 
     system = System.read_system(system_file)
     index_to_inputs = choose_system_inputs(system, 100)
-    out_file = open("inputs.txt", "w")
+    out_file = open("inputs-%s.txt" % system_name, "w")
     save_system_inputs(out_file, index_to_inputs)
     out_file.close()
 
     for faults in [1, 2, 3]:
         index_to_inputs = choose_observable_faults(system_file, 100, faults)
-        output_file_name = "inputs_and_faults-%d.txt" % faults
+        output_file_name = "inputs_and_faults-%s-%d.txt" % (system_name,faults)
         out_file = open(output_file_name, "w")
         save_observable_faults(out_file, index_to_inputs)
         out_file.close()

@@ -46,6 +46,15 @@ class Component(object):
         return max(inputs)
 
     @staticmethod
+    def or3(inputs):
+        return max(inputs)
+
+    @staticmethod
+    def or4(inputs):
+        return max(inputs)
+
+
+    @staticmethod
     def nor2(inputs):
         return 1 - max(inputs)
 
@@ -59,6 +68,10 @@ class Component(object):
 
     @staticmethod
     def nor5(inputs):
+        return 1 - max(inputs)
+
+    @staticmethod
+    def nor8(inputs):
         return 1 - max(inputs)
 
     @staticmethod
@@ -103,17 +116,41 @@ class System:
         comp_inputs = parts[3:]
         return Component(comp_name, comp_type, comp_inputs, comp_output)
 
+
+    '''
+       Read a comma-delimited list from a list of lines, starting with a given start line index and a "[" symbol
+       and ending with a line that ends with "]."
+       '''
+    @staticmethod
+    def __read_list(lines, start_line):
+        my_list = []
+        line_no = start_line
+        while True:
+            line = lines[line_no].strip()
+
+            line_no = line_no + 1
+            # Cut leading and ending []. signs
+            if line.startswith("["):
+                line = line[1:]
+            if line.endswith("]."):
+                line = line[:-2]
+                my_list.extend(line.split(","))
+                break
+            my_list.extend(line.split(","))
+        return (line_no, my_list)
+
     @staticmethod
     def read_system(in_file_name):
         in_file = open(in_file_name, "r")
         lines = in_file.readlines()
         system_name = lines[0].strip()
-        system_inputs = lines[1].strip()[1:-2].split(",")
-        system_outputs = lines[2].strip()[1:-2].split(",")
+
+        (line_no, system_inputs) = System.__read_list(lines, 1)
+        (line_no, system_outputs) = System.__read_list(lines, line_no)
 
         # Read components
         components = dict()
-        for line in lines[3:]:
+        for line in lines[line_no:]:
             component = System.__read_component(line)
             components[component.name] = component
         return System(system_name, system_inputs, system_outputs, components)

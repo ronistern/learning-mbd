@@ -127,19 +127,23 @@ def sample_complexity(system,epsilon,delta):
 
 
 def main():
-    system_file = "systems/74181.sys"
-    training_inputs_file = "inputs.txt"
+    system_name = "74181.sys"
+    #system_name = "c3540.sys"
+    system_file = "systems/%s" % system_name
+    training_inputs_file = "inputs-%s.txt" % system_name
+
     probes_range = [1,4,8,16,57]
     #training_sizes = [4,16,64,256,1024]
     training_sizes = [4,16,64,256,1024,2048,4096,8192]
-    output_file = "joined_output-v2.csv"
+
+    output_file = "joined_output-%s.csv" % system_name
     out_file = open(output_file, "w")
 
     headers_written = False
 
     # Headers
     for faults in [1,2,3]:
-        faults_file = "inputs_and_faults-%d.txt" % faults
+        faults_file = "inputs_and_faults-%s-%d.txt" % (system_name,faults)
         for i in xrange(5):
             print "Iteration %d, Faults %d" % (i,faults)
 
