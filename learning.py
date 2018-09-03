@@ -78,6 +78,7 @@ def identify_surely_normal_inputs(subsystem_to_behavior, obs_input, obs_output):
     # Identify surely faulty and normally behaving subsystems
     surely_faulty = set()
     normally_behaving = set()
+    unknown = set()
     for subsystem in subsystem_to_behavior.keys():
         if observed_vars.issuperset(subsystem.inputs):
             behavior = subsystem_to_behavior[subsystem]
@@ -89,6 +90,8 @@ def identify_surely_normal_inputs(subsystem_to_behavior, obs_input, obs_output):
                     surely_faulty.add(subsystem)
                 else:
                     normally_behaving.add(subsystem)
+            else:
+                unknown.add(subsystem)
     return  (surely_faulty,normally_behaving)
 
 

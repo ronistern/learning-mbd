@@ -182,6 +182,10 @@ def inject_fault(system, faulty_component):
     comp = system.components[faulty_component]
     comp.compute = types.MethodType(fault, comp)
 
+def inject_faults(system, faulty_components):
+    for comp in faulty_components:
+        inject_fault(system,comp)
+
 def clear_fault(system, faulty_component):
      comp = system.components[faulty_component]
      comp.compute = types.MethodType(normal, comp)

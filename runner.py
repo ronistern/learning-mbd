@@ -5,30 +5,7 @@ import math
 import copy
 from systems import System, inject_fault
 from learning import learn, diagnose,fully_observed_subsystems
-
-''' Loads the system inputs file '''
-def load_system_inputs(in_file_name):
-    in_file = open(in_file_name,"r")
-    training_inputs = dict()
-    for line in in_file:
-        parts = line.split("|")
-        input_index = int(parts[0])
-        sys_inputs = json.loads(parts[1].strip())
-        training_inputs[input_index]=sys_inputs
-    in_file.close()
-    return training_inputs
-
-''' Loads the observable faults file '''
-def load_observable_faults(in_file_name):
-    in_file = open(in_file_name, "r")
-    inputs_and_faults = dict()
-    for line in in_file:
-        parts = line.split("|")
-        input_index = int(parts[0])
-        sys_inputs = json.loads(parts[1].strip())
-        inputs_and_faults[input_index]=sys_inputs
-    in_file.close()
-    return inputs_and_faults
+import generator
 
 
 def run_experiments(system_file, probes_range, training_inputs_file, training_sizes, faults_file,out_file,extra_data):
@@ -37,11 +14,11 @@ def run_experiments(system_file, probes_range, training_inputs_file, training_si
     extra_data_values = ",".join([str(item) for item in extra_data.values()])
 
     # Load faults file
-    test_inputs_and_faults = load_observable_faults(faults_file)
+    test_inputs_and_faults = generator.load_observable_faults(faults_file)
     abnormal_observations = test_inputs_and_faults.keys()
 
     # Load training inputs
-    training_inputs = load_system_inputs(training_inputs_file)
+    training_inputs = generator.load_system_inputs(training_inputs_file)
     all_training_instances = training_inputs.keys()
     random.shuffle(all_training_instances)
 
@@ -89,8 +66,6 @@ def run_experiments(system_file, probes_range, training_inputs_file, training_si
                 obs_output = faulty_system.propagate(obs_input)
 
                 (candidate_faults, exonorated) = diagnose(faulty_system,partial_model,obs_input,obs_output)
-                #assert_candidate_faults(candidate_faults,faulty_components)
-                #assert_exonorated(exonorated, faulty_components)
 
                 identified_faults = faulty_components.intersection(candidate_faults)
                 missed_faults = faulty_components.difference(candidate_faults)
@@ -106,6 +81,17 @@ def run_experiments(system_file, probes_range, training_inputs_file, training_si
                 output_line = "%s,%s,%s\n" % (",".join(results_key_str),",".join(results_value_str), extra_data_values)
                 out_file.write(output_line)
                 out_file.flush()
+    return results
+
+'''
+    Run a single experiment
+'''
+def run_one_experiment(faulty_system, training_set, abnormal_observation):
+    # Learn partial model
+    partial_model = learn(faulty_system, training_set)
+    (obs_input, obs_output) = abnormal_observation
+    return diagnose(faulty_system, partial_model, obs_input, obs_output)
+
 
 
 def sample_complexity():
@@ -144,8 +130,9 @@ def main():
     system_file = "systems/74181.sys"
     training_inputs_file = "inputs.txt"
     probes_range = [1,4,8,16,57]
-    training_sizes = [4,16,64,256,1024]
-    output_file = "joined_output.csv"
+    #training_sizes = [4,16,64,256,1024]
+    training_sizes = [4,16,64,256,1024,2048,4096,8192]
+    output_file = "joined_output-v2.csv"
     out_file = open(output_file, "w")
 
     headers_written = False

@@ -1,25 +1,13 @@
 import random
 import json
-from systems import System
+import utils
+from systems import System, inject_faults
 
 def generate_random_inputs(system):
     var_to_value = dict()
     for sys_input in system.inputs:
         var_to_value[sys_input] = random.randint(0, 1)
     return var_to_value
-
-def create_training_set(system, training_size):
-    training_set = dict()
-    for i in xrange(training_size):
-        obs_input = generate_random_inputs(system)
-        obs_key = str(obs_input.values())
-        while training_set.has_key(obs_key):
-            obs_input = generate_random_inputs(system)
-            obs_key = str(obs_input.values())
-
-        obs_output = system.propagate(obs_input)
-        training_set[obs_key] = (obs_input, obs_output)
-    return training_set
 
 def assert_candidate_faults(candidate_faults, faulty_components):
     if len(candidate_faults)>0:
@@ -40,61 +28,87 @@ def choose_system_inputs(system, training_size):
     input_index = 0
     for i in xrange(training_size):
         obs_input = generate_random_inputs(system)
-        obs_key = json.dumps(obs_input)
+        obs_key = json.dumps(obs_input,sort_keys=True)
         while obs_key in previously_created_inputs:
             obs_input = generate_random_inputs(system)
-            obs_key = json.dumps(obs_input)
+            obs_key = json.dumps(obs_input,sort_keys=True)
         training_inputs[input_index] = obs_input
         input_index=input_index+1
     return training_inputs
 
 def save_system_inputs(out_file, training_inputs):
     for (key,value) in training_inputs.items():
-        out_file.write("%s|%s\n" % (key, json.dumps(value)))
+        out_file.write("%s|%s\n" % (key, json.dumps(value,sort_keys=True)))
 
 
 '''
 Create random sets of inputs, to be used to create the training set
 '''
 def choose_observable_faults(system_file, instances, faults):
-    system = System.read_system(system_file)
     inputs_and_faults = dict()
     previously_created = set()
     for instance in xrange(instances):
+        system = System.read_system(system_file)
         while True:
             obs_input = generate_random_inputs(system)
             obs_faults = list(random.sample(system.components.keys(), faults))
 
-            obs_key = json.dumps((obs_input,obs_faults))
+            obs_key = json.dumps((obs_input,obs_faults),sort_keys=True)
             while obs_key in previously_created:
                 obs_input = generate_random_inputs(system)
-                obs_key = json.dumps((obs_input, obs_faults))
+                obs_key = json.dumps((obs_input, obs_faults),sort_keys=True)
 
             # Check if the observation is abnormal (compare to normal output)
-            for comp in obs_faults:
-                system.inject_fault(system, comp)
+            inject_faults(system, obs_faults)
             obs_output = system.propagate(obs_input)
 
             normal_system = System.read_system(system_file)
             normal_output = normal_system.propagate(obs_input)
 
+            assert(len(normal_output)==len(obs_output))
+
             # Only consider this input-and-faults pair if it creates observable abnormal outputs
-            if obs_output != normal_output:
+            if json.dumps(obs_output, sort_keys=True)!=json.dumps(normal_output, sort_keys=True):
                 break
             else:
                 system = normal_system
-
         inputs_and_faults[instance] = (obs_input, obs_faults)
     return inputs_and_faults
 
 def save_observable_faults(out_file, inputs_and_faults):
     for (key,value) in inputs_and_faults.items():
-        out_file.write("%s|%s\n" % (key, json.dumps(value)))
+        out_file.write("%s|%s\n" % (key, json.dumps(value,sort_keys=True)))
+
+
+
+''' Loads the system inputs file '''
+def load_system_inputs(in_file_name):
+    in_file = open(in_file_name,"r")
+    training_inputs = dict()
+    for line in in_file:
+        parts = line.split("|")
+        input_index = int(parts[0])
+        sys_inputs = json.loads(parts[1].strip())
+        training_inputs[input_index]=sys_inputs
+    in_file.close()
+    return training_inputs
+
+''' Loads the observable faults file '''
+def load_observable_faults(in_file_name):
+    in_file = open(in_file_name, "r")
+    inputs_and_faults = dict()
+    for line in in_file:
+        parts = line.split("|")
+        input_index = int(parts[0])
+        sys_inputs = json.loads(parts[1].strip())
+        inputs_and_faults[input_index]=sys_inputs
+    in_file.close()
+    return inputs_and_faults
 
 '''
 Create all data needed for runner to run
 '''
-def __main__():
+def main():
     system_file = "systems/74181.sys"
 
     system = System.read_system(system_file)
