@@ -127,8 +127,8 @@ def sample_complexity(system,epsilon,delta):
 
 
 def main():
-    system_name = "74181.sys"
-    #system_name = "c3540.sys"
+    #system_name = "74181.sys"
+    system_name = "c3540.sys"
     system_file = "systems/%s" % system_name
     training_inputs_file = "inputs-%s.txt" % system_name
 

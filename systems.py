@@ -127,7 +127,6 @@ class System:
         line_no = start_line
         while True:
             line = lines[line_no].strip()
-
             line_no = line_no + 1
             # Cut leading and ending []. signs
             if line.startswith("["):
@@ -136,7 +135,8 @@ class System:
                 line = line[:-2]
                 my_list.extend(line.split(","))
                 break
-            my_list.extend(line.split(","))
+            new_elements = [x for x in line.split(",") if len(x)>0] # Removing the empty element at the end of the line
+            my_list.extend(new_elements)
         return (line_no, my_list)
 
     @staticmethod

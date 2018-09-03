@@ -109,8 +109,8 @@ def load_observable_faults(in_file_name):
 Create all data needed for runner to run
 '''
 def main():
-    #system_name = "c3540.sys"
-    system_name = "74181.sys"
+    system_name = "c3540.sys"
+    #system_name = "74181.sys"
     system_file = "systems/%s"% system_name
 
     system = System.read_system(system_file)
